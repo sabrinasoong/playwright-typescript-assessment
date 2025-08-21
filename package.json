@@ -1,0 +1,14 @@
+{
+  "name": "playwright-typescript-assessment",
+  "version": "1.0.0",
+  "description": "Playwright - Typescript UI automation for an assessment",
+  "main": "index.js",
+  "scripts": {},
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@playwright/test": "^1.55.0",
+    "@types/node": "^24.3.0"
+  }
+}
