@@ -2,11 +2,13 @@ import { test, expect } from "@playwright/test";
 import fs from "fs";
 import path from "path";
 import { dataType, writeToCSV } from "../utils/createCSVHelper";
+import { Homepage } from "../pages/homepage";
 
 test("should navigate to the homepage", async ({ page }) => {
-  await page.goto("https://www.londonstockexchange.com/");
+  const homepage = new Homepage(page);
+  await homepage.goto();
 
-  // Expect a title "to contain" a substring.
+  // Expect London Stock Exchange page
   await expect(page).toHaveTitle(/London Stock Exchange/);
 });
 
@@ -15,10 +17,9 @@ test("should return top 10 constituents with highest percentage content", async 
   context,
   page,
 }) => {
-  await page.goto("https://www.londonstockexchange.com/");
-
-  // Click on Accept all cookies
-  await page.getByRole("button", { name: /Accept all cookies/ }).click();
+  const homepage = new Homepage(page);
+  await homepage.goto();
+  await homepage.acceptCookies;
 
   // Wait for new tab to open
   const [newTab] = await Promise.all([
@@ -34,7 +35,6 @@ test("should return top 10 constituents with highest percentage content", async 
   await expect(newTab.getByRole("heading", { name: /FTSE 100/ })).toBeVisible();
 
   // Gets data from table
-
   await newTab.waitForSelector("table tbody tr", { state: "visible" });
 
   const table = await newTab.locator("table tbody tr").all();
@@ -76,10 +76,9 @@ test("should return top 10 constituents with lowest percentage content", async (
   context,
   page,
 }) => {
-  await page.goto("https://www.londonstockexchange.com/");
-
-  // Click on Accept all cookies
-  await page.getByRole("button", { name: /Accept all cookies/ }).click();
+  const homepage = new Homepage(page);
+  await homepage.goto();
+  await homepage.acceptCookies;
 
   // Wait for new tab to open
   const [newTab] = await Promise.all([
