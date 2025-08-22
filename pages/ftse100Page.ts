@@ -1,19 +1,18 @@
 import { Page, Locator, expect } from "@playwright/test";
 import { dataType } from "../utils/createCSVHelper";
+import { LONDON_STOCK_EXCHANGE_FTSE100_CONSTITUENTS } from "../constants/urls";
+
+type PeriodType = "Monthly" | "Daily" | "Yearly";
 
 export class Ftse100Page {
   readonly page: Page;
-  readonly tableRows: Locator;
-  readonly filterButton: (filter: string) => Locator;
 
   constructor(page: Page) {
     this.page = page;
-    this.tableRows = page.locator("");
-    this.filterButton = (filterName: string) =>
-      page.locator(`button[aria-label="${filterName}"]`);
   }
 
   private async extractRowData(row: Locator) {
+    // Extracts all row data from the ftse 100 table
     const code = await row.locator(".instrument-tidm").innerText();
     const name = await row.locator(".ellipsed").innerText();
 
@@ -39,11 +38,17 @@ export class Ftse100Page {
 
   async checkPageIsLoaded() {
     await expect(this.page).toHaveURL(
-      "https://www.londonstockexchange.com/indices/ftse-100/constituents"
+      LONDON_STOCK_EXCHANGE_FTSE100_CONSTITUENTS,
+      { timeout: 10000 }
     );
     await expect(
       this.page.getByRole("heading", { name: /FTSE 100/ })
     ).toBeVisible();
+  }
+
+  async goToOverview() {
+    await this.page.getByRole("link", { name: /Overview/ }).click();
+    await expect(this.page.locator("#ftse-ticker")).toBeVisible();
   }
 
   async filterBy(filter: string, ascending: boolean) {
@@ -57,14 +62,9 @@ export class Ftse100Page {
       .click();
   }
 
-  async waitForTableRefresh() {
-    await this.page.waitForResponse(
-      (res) =>
-        res
-          .url()
-          .includes(
-            "https://api.londonstockexchange.com/api/v1/components/refresh"
-          ) && res.status() === 200
+  async waitForDataRefresh(request: string) {
+    return await this.page.waitForResponse(
+      (res) => res.url().includes(request) && res.status() === 200
     );
   }
 
@@ -82,6 +82,8 @@ export class Ftse100Page {
   }
 
   async getDataFromTable(table: Locator[]) {
+    // Returns data from the table by rows
+
     const data: dataType = [];
     for (const row of table) {
       const rowData = await this.extractRowData(row);
@@ -101,7 +103,9 @@ export class Ftse100Page {
     // Go through each page and get data then extracts if market cap value exceeds set num
     for (let i = 0; i < pageCount; i++) {
       await pageButtons.nth(i).click();
-      await this.waitForTableRefresh();
+      await this.waitForDataRefresh(
+        "https://api.londonstockexchange.com/api/v1/components/refresh"
+      );
 
       const tableRows = await this.page.locator("table tbody tr").all();
 
@@ -119,5 +123,23 @@ export class Ftse100Page {
     }
 
     return data;
+  }
+
+  async editYearFromFilter(year: number) {
+    // Changes the year from filter by a set number of years
+    const yearFromDate = await this.page.locator(
+      '[aria-label="Year in from date"]'
+    );
+    await yearFromDate.click();
+    const currentYearFromDate = await yearFromDate.inputValue();
+    const setYear = Number(currentYearFromDate) - year + 1;
+    await yearFromDate.fill(setYear.toString());
+    await yearFromDate.press("Enter");
+  }
+
+  async editGraphPeriodType(periodType: PeriodType) {
+    // Takes in a value and choose from the periodicity dropdown to select
+    await this.page.locator(".periodicity-select").click();
+    await this.page.locator(".dropdown-option-text").getByText(periodType);
   }
 }
