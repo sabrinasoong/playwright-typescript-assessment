@@ -1,6 +1,7 @@
 import { test, expect } from "@playwright/test";
 import fs from "fs";
 import path from "path";
+import { dataType, writeToCSV } from "../utils/createCSVHelper";
 
 test("should navigate to the homepage", async ({ page }) => {
   await page.goto("https://www.londonstockexchange.com/");
@@ -32,21 +33,16 @@ test("should return top 10 constituents with highest percentage content", async 
   );
   await expect(newTab.getByRole("heading", { name: /FTSE 100/ })).toBeVisible();
 
+  // Gets data from table
+
   await newTab.waitForSelector("table tbody tr", { state: "visible" });
 
   const table = await newTab.locator("table tbody tr").all();
   const top10 = table.slice(0, 10);
 
-  const top10table: Array<{
-    code: string;
-    name: string;
-    currency: string;
-    marketCap: string;
-    netChange: string;
-    percentualchange: string;
-  }> = [];
+  const top10table: dataType = [];
 
-  // Grabs information for top 10
+  // Gets information for top 10 constituents
   for (const row of top10) {
     const code = await row.locator(".instrument-tidm").innerText();
     const name = await row.locator(".ellipsed").innerText();
@@ -71,25 +67,6 @@ test("should return top 10 constituents with highest percentage content", async 
     });
   }
 
-  // Convert to CSV
-  const headers = Object.keys(top10table[0]).join(",");
-  const rowsCSV = top10table
-    .map((row) =>
-      Object.values(row)
-        .map((val) => `"${val}"`)
-        .join(",")
-    )
-    .join("\n");
-  const csvContent = `${headers}\n${rowsCSV}`;
-  const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
-
-  const outputDir = path.join(__dirname, "reports");
-  if (!fs.existsSync(outputDir)) {
-    fs.mkdirSync(outputDir, { recursive: true });
-  }
-
-  const filePath = path.join(outputDir, `top10_ftse100_${timestamp}.csv`);
-  fs.writeFileSync(filePath, csvContent);
-
-  console.log(`CSV file generated: top10_ftse100_${timestamp}.csv`);
+  // Export data to CSV
+  writeToCSV(top10table, "ftse_100_top10");
 });
