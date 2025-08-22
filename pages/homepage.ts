@@ -9,9 +9,7 @@ export class Homepage {
 
   async goto() {
     await this.page.goto("https://www.londonstockexchange.com/");
-  }
-
-  async acceptCookies() {
+    await expect(this.page).toHaveTitle(/London Stock Exchange/);
     await this.page.getByRole("button", { name: /Accept all cookies/ }).click();
   }
 }
