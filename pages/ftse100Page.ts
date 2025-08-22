@@ -13,6 +13,30 @@ export class Ftse100Page {
       page.locator(`button[aria-label="${filterName}"]`);
   }
 
+  private async extractRowData(row: Locator) {
+    const code = await row.locator(".instrument-tidm").innerText();
+    const name = await row.locator(".ellipsed").innerText();
+
+    const currency = await row.locator(".instrument-currency").innerText();
+    const marketCap = await row
+      .locator(".instrument-marketcapitalization")
+      .innerText();
+
+    const netChange = await row.locator(".instrument-netchange").innerText();
+    const percentualchange = await row
+      .locator(".instrument-percentualchange")
+      .innerText();
+
+    return {
+      code,
+      name,
+      currency,
+      marketCap,
+      netChange,
+      percentualchange,
+    };
+  }
+
   async checkPageIsLoaded() {
     await expect(this.page).toHaveURL(
       "https://www.londonstockexchange.com/indices/ftse-100/constituents"
@@ -54,35 +78,46 @@ export class Ftse100Page {
   }
 
   async getTop10Rows(table: Locator[]) {
-    const top10 = table.slice(0, 10);
-    return top10;
+    return table.slice(0, 10);
   }
 
   async getDataFromTable(table: Locator[]) {
     const data: dataType = [];
     for (const row of table) {
-      const code = await row.locator(".instrument-tidm").innerText();
-      const name = await row.locator(".ellipsed").innerText();
+      const rowData = await this.extractRowData(row);
 
-      const currency = await row.locator(".instrument-currency").innerText();
-      const marketCap = await row
-        .locator(".instrument-marketcapitalization")
-        .innerText();
-
-      const netChange = await row.locator(".instrument-netchange").innerText();
-      const percentualchange = await row
-        .locator(".instrument-percentualchange")
-        .innerText();
-
-      data.push({
-        code,
-        name,
-        currency,
-        marketCap,
-        netChange,
-        percentualchange,
-      });
+      data.push(rowData);
     }
+    return data;
+  }
+
+  async getMinMarketCap(num: number, table: Locator[]) {
+    const data: dataType = [];
+
+    // Get all page buttons
+    const pageButtons = this.page.locator(".page-number");
+    const pageCount = await pageButtons.count();
+
+    // Go through each page and get data then extracts if market cap value exceeds set num
+    for (let i = 0; i < pageCount; i++) {
+      await pageButtons.nth(i).click();
+      await this.waitForTableRefresh();
+
+      const tableRows = await this.page.locator("table tbody tr").all();
+
+      for (const row of tableRows) {
+        const rowData = await this.extractRowData(row);
+
+        const marketCapValue = parseFloat(rowData.marketCap.replace(/,/g, ""));
+
+        if (marketCapValue >= num) {
+          data.push(rowData);
+        } else if (marketCapValue < num) {
+          return;
+        }
+      }
+    }
+
     return data;
   }
 }
